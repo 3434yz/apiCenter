@@ -75,4 +75,42 @@
 
 ## ```regSelf()```
 
+- 创建一个```Instance```实例
+  - ```model.Instance```是什么？
+    - 一个发现服务实例，用于被其他组件发现和注册
+  - 将```instace```注册到```discovery```
+
+```golang
+    type Instance struct {
+        Region   string            `json:"region"`
+        Zone     string            `json:"zone"`
+        Env      string            `json:"env"`
+        AppID    string            `json:"appid"`
+        Hostname string            `json:"hostname"`
+        Addrs    []string          `json:"addrs"`
+        Version  string            `json:"version"`
+        Metadata map[string]string `json:"metadata"`
+
+        // Status enum instance status
+        Status uint32 `json:"status"`
+
+        // timestamp
+        RegTimestamp   int64 `json:"reg_timestamp"`
+        UpTimestamp    int64 `json:"up_timestamp"` // NOTE: It is latest timestamp that status becomes UP.
+        RenewTimestamp int64 `json:"renew_timestamp"`
+        DirtyTimestamp int64 `json:"dirty_timestamp"`
+
+        LatestTimestamp int64 `json:"latest_timestamp"`
+    }
+```
+
+- 开启一个```work goroutine```
+  - ```for-select-ticker```模式
+  - ```case:ticker```用于更新本```instance```
+  - ```case:Done```用于关闭本instance
+
 ## ```nodesproc()```
+
+- ```Poll```同一```AppID```的实例信息
+  - 命名结构类似```appID:Zone:Nodes```
+  - ```Poll```到的新节点```Up```然后存储到```discovery.nodes```

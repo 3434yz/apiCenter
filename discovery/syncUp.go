@@ -3,16 +3,26 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"log"
+	"net/url"
 	"time"
 
-	"github.com/bilibili/discovery/model"
-	"github.com/bilibili/discovery/registry"
+	"apiCenter/conf"
+	"apiCenter/model"
+	"apiCenter/registry"
+
+	"github.com/go-kratos/kratos/pkg/ecode"
+	log "github.com/go-kratos/kratos/pkg/log"
 )
 
 var (
 	_fetchAllURL = "http://%s/discovery/fetch/all"
 )
+
+/*
+	（1）同步其他节点的数据到本节点
+	（2）注册自身，开启renew协程
+	（3）poll其他相同AppID的节点
+*/
 
 // Protected return if service in init protect mode.
 // if service in init protect mode,only support write,
@@ -53,8 +63,108 @@ func (d *Discovery) syncUp() {
 	}
 }
 
-func (d *Discovery) regSelf() context.Context {
+func (d *Discovery) regSelf() context.CancelFunc {
 	ctx, cancel := context.WithCancel(context.Background())
 	now := time.Now().UnixNano()
-	ins := &model.Instance{}
+	ins := &model.Instance{
+		Region:   d.c.Env.Region,
+		Zone:     d.c.Env.Zone,
+		Env:      d.c.Env.DeployEnv,
+		Hostname: d.c.Env.Host,
+		AppID:    model.AppID,
+		Addrs: []string{
+			"http://" + d.c.HttpServer.Addr,
+		},
+		Status:          model.InstanceStatusUP,
+		RegTimestamp:    now,
+		UpTimestamp:     now,
+		LatestTimestamp: now,
+		RenewTimestamp:  now,
+		DirtyTimestamp:  now,
+	}
+	d.Register(ctx, ins, now, false, false)
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				arg := &model.ArgRenew{
+					AppID:    ins.AppID,
+					Zone:     d.c.Env.Zone,
+					Env:      d.c.Env.DeployEnv,
+					Hostname: d.c.Env.Host,
+				}
+				if _, err := d.Renew(ctx, arg); err != nil && err == ecode.NothingFound {
+					d.Register(ctx, ins, now, false, false)
+				}
+			case <-ctx.Done():
+				arg := &model.ArgCancel{
+					AppID:    model.AppID,
+					Zone:     d.c.Env.Zone,
+					Env:      d.c.Env.DeployEnv,
+					Hostname: d.c.Env.Host,
+				}
+				if err := d.Cancel(context.Background(), arg); err != nil {
+					log.Error("d.Cancel(%+v) error(%v)", arg, err)
+				}
+				return
+			}
+		}
+	}()
+	return cancel
+}
+
+func (d *Discovery) nodesproc() {
+	var lastTs int64
+	for {
+		arg := &model.ArgPolls{
+			AppID:           []string{model.AppID},
+			Hostname:        d.c.Env.Host,
+			LatestTimestamp: []int64{lastTs},
+			Env:             d.c.Env.DeployEnv,
+		}
+		ch, _, _, err := d.registry.Polls(arg)
+		if err != nil && err != ecode.NotModified {
+			log.Error("d.registry(%v) error(%v)", arg, err)
+			time.Sleep(time.Second)
+			continue
+		}
+		apps := <-ch
+		ins, ok := apps[model.AppID]
+		if !ok || ins == nil {
+			return
+		}
+		var (
+			nodes []string
+			zones = make(map[string][]string)
+		)
+		for _, ins := range ins.Instances {
+			for _, in := range ins {
+				for _, addr := range in.Addrs {
+					u, err := url.Parse(addr)
+					if err == nil && u.Scheme == "http" {
+						/*
+							(1) 同一Zone，append host
+							(2) Zone不同，就新增一个Zone
+						*/
+						if in.Zone == d.c.Env.Zone {
+							nodes = append(nodes, u.Host)
+						} else {
+							zones[in.Zone] = append(zones[in.Zone], u.Host)
+						}
+					}
+				}
+			}
+		}
+		lastTs = ins.LatestTimestamp
+		c := new(conf.Config)
+		*c = *d.c
+		c.Nodes = nodes
+		c.Zones = zones
+		ns := registry.NewNodes(c)
+		ns.UP()
+		d.nodes.Store(ns)
+		log.Info("discovery changed nodes:%v zones:%v", nodes, zones)
+	}
 }
