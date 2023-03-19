@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"apiCenter/conf"
+	"apiCenter/discovery"
+	"apiCenter/discovery/http"
 
 	log "github.com/go-kratos/kratos/pkg/log"
 )
@@ -19,8 +21,8 @@ func main() {
 		panic(err)
 	}
 	log.Init(conf.Conf.Log)
-	// dis, cancel := discovery.New(conf.Conf)
-	// http.Init(conf.Conf, dis)
+	dis, cancel := discovery.New(conf.Conf)
+	http.Init(conf.Conf, dis)
 	// init signal
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
@@ -29,7 +31,7 @@ func main() {
 		log.Info("discovery get a signal %s", s.String())
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
-			// cancel()
+			cancel()
 			time.Sleep(time.Second)
 			log.Info("discovery quit !!!")
 			return
