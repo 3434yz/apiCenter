@@ -1,31 +1,30 @@
 package discovery
 
 import (
-	"context"
-	"net/http"
-	"sync/atomic"
-	"time"
-
 	"apiCenter/conf"
 	"apiCenter/registry"
+	"context"
+	http "github.com/go-kratos/kratos/pkg/net/http/blademaster"
+	"sync/atomic"
+	"time"
 )
 
 type Discovery struct {
 	c         *conf.Config
 	protected bool
-	client    http.Client
+	client    *http.Client
 	registry  *registry.Registry
 	nodes     atomic.Value
 }
 
 func New(c *conf.Config) (d *Discovery, cancel context.CancelFunc) {
 	d = &Discovery{
-		c:         c,
 		protected: c.EnableProtect,
-		client:    http.NewClient(c.HttpClient),
+		c:         c,
+		client:    http.NewClient(c.HTTPClient),
 		registry:  registry.NewRegistry(c),
 	}
-	d.nodes.Store(c.Nodes)
+	d.nodes.Store(registry.NewNodes(c))
 	d.syncUp()
 	cancel = d.regSelf()
 	go d.nodesproc()
@@ -34,7 +33,6 @@ func New(c *conf.Config) (d *Discovery, cancel context.CancelFunc) {
 }
 
 func (d *Discovery) exitProtect() {
-	// 受保护时间内只允许写不允许读
 	time.Sleep(time.Second * 60)
 	d.protected = false
 }

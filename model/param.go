@@ -1,23 +1,21 @@
 package model
 
-// ArgRegister define register param.
 type ArgRegister struct {
-	Region          string   `form:"region"`
-	Zone            string   `form:"zone" validate:"required"`
-	Env             string   `form:"env" validate:"required"`
-	AppID           string   `form:"appid" validate:"required"`
-	Hostname        string   `form:"hostname" validate:"required"`
-	Status          uint32   `form:"status" validate:"required"`
-	Addrs           []string `form:"addrs" validate:"gt=0"`
-	Version         string   `form:"version"`
-	Metadata        string   `form:"metadata"`
-	Replication     bool     `form:"replication"`
-	LatestTimestamp int64    `form:"latest_timestamp"`
-	DirtyTimestamp  int64    `form:"dirty_timestamp"`
-	FromZone        bool     `form:"from_zone"`
+	Region          string   `json:"region,omitempty"`
+	Zone            string   `json:"zone,omitempty"`
+	Env             string   `json:"env,omitempty"`
+	AppID           string   `json:"app_id,omitempty"`
+	Hostname        string   `json:"hostname,omitempty"`
+	Status          uint32   `json:"status,omitempty"`
+	Addrs           []string `json:"addrs,omitempty"`
+	Version         string   `json:"version,omitempty"`
+	Metadata        string   `json:"metadata,omitempty"`
+	Replication     bool     `json:"replication,omitempty"`
+	LatestTimestamp int64    `json:"latest_timestamp,omitempty"`
+	DirtyTimestamp  int64    `json:"dirty_timestamp,omitempty"`
+	FromZone        bool     `json:"from_zone,omitempty"`
 }
 
-// ArgRenew define renew params.
 type ArgRenew struct {
 	Zone           string `form:"zone" validate:"required"`
 	Env            string `form:"env" validate:"required"`
@@ -28,7 +26,6 @@ type ArgRenew struct {
 	FromZone       bool   `form:"from_zone"`
 }
 
-// ArgCancel define cancel params.
 type ArgCancel struct {
 	Zone            string `form:"zone" validate:"required"`
 	Env             string `form:"env" validate:"required"`
@@ -55,34 +52,31 @@ type ArgFetchs struct {
 	Status uint32   `form:"status" validate:"required"`
 }
 
-// ArgPoll define poll param.
-type ArgPoll struct {
-	Zone            string `form:"zone"`
-	Env             string `form:"env" validate:"required"`
-	AppID           string `form:"appid" validate:"required"`
-	Hostname        string `form:"hostname" validate:"required"`
-	LatestTimestamp int64  `form:"latest_timestamp"`
-}
-
-// ArgPolls define poll param.
 type ArgPolls struct {
-	Zone            string   `form:"zone"`
-	Env             string   `form:"env" validate:"required"`
-	AppID           []string `form:"appid" validate:"gt=0"`
-	Hostname        string   `form:"hostname" validate:"required"`
-	LatestTimestamp []int64  `form:"latest_timestamp"`
+	Zone            string   `json:"zone,omitempty"`
+	Env             string   `json:"env,omitempty"`
+	AppID           []string `json:"app_id,omitempty"`
+	Hostname        string   `json:"hostname,omitempty"`
+	LatestTimestamp []int64  `json:"latest_timestamp,omitempty"`
 }
 
-// ArgSet define set param.
+type ArgPoll struct {
+	Zone            string `json:"zone,omitempty"`
+	Env             string `json:"env,omitempty"`
+	AppID           string `json:"app_id,omitempty"`
+	Hostname        string `json:"hostname,omitempty"`
+	LatestTimestamp int64  `json:"latest_timestamp,omitempty"`
+}
+
 type ArgSet struct {
-	Region       string   `form:"region"`
-	Zone         string   `form:"zone" validate:"required"`
-	Env          string   `form:"env" validate:"required"`
-	AppID        string   `form:"appid" validate:"required"`
-	Hostname     []string `form:"hostname" validate:"gte=0"`
-	Status       []int64  `form:"status" validate:"gte=0"`
-	Metadata     []string `form:"metadata" validate:"gte=0"`
-	Replication  bool     `form:"replication"`
-	FromZone     bool     `form:"from_zone"`
-	SetTimestamp int64    `form:"set_timestamp"`
+	Region       string   `json:"region,omitempty"`
+	Zone         string   `json:"zone,omitempty"`
+	Env          string   `json:"env,omitempty"`
+	AppID        string   `json:"app_id,omitempty"`
+	Hostname     []string `json:"hostname,omitempty"`
+	Status       []int64  `json:"status,omitempty"`
+	Metadata     []string `json:"metadata,omitempty"`
+	Replication  bool     `json:"replication,omitempty"`
+	FromZone     bool     `json:"from_zone,omitempty"`
+	SetTimestamp int64    `json:"set_timestamp,omitempty"`
 }

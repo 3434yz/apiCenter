@@ -11,27 +11,17 @@ import (
 	"apiCenter/registry"
 
 	"github.com/go-kratos/kratos/pkg/ecode"
-	log "github.com/go-kratos/kratos/pkg/log"
+	"github.com/go-kratos/kratos/pkg/log"
 )
 
 var (
 	_fetchAllURL = "http://%s/discovery/fetch/all"
 )
 
-/*
-	（1）同步其他节点的数据到本节点
-	（2）注册自身，开启renew协程
-	（3）poll其他相同AppID的节点
-*/
-
-// Protected return if service in init protect mode.
-// if service in init protect mode,only support write,
-// read operator isn't supported.
 func (d *Discovery) Protected() bool {
 	return d.protected
 }
 
-// 从其他节点同步数据到本节点
 func (d *Discovery) syncUp() {
 	nodes := d.nodes.Load().(*registry.Nodes)
 	for _, node := range nodes.AllNodes() {
@@ -51,16 +41,14 @@ func (d *Discovery) syncUp() {
 			log.Error("service syncup from(%s) failed ", uri)
 			continue
 		}
-		// sync success from other node,exit protected mode
 		d.protected = false
 		for _, is := range res.Data {
-			for _, ins := range is {
-				_ = d.registry.Register(ins, ins.LatestTimestamp)
+			for _, i := range is {
+				_ = d.registry.Register(i, i.LatestTimestamp)
 			}
 		}
-		// 不返回时确保所有的实例把其他实例注册到自身.
-		nodes.UP()
 	}
+	nodes.Up()
 }
 
 func (d *Discovery) regSelf() context.CancelFunc {
@@ -73,7 +61,7 @@ func (d *Discovery) regSelf() context.CancelFunc {
 		Hostname: d.c.Env.Host,
 		AppID:    model.AppID,
 		Addrs: []string{
-			"http://" + d.c.HttpServer.Addr,
+			"http://" + d.c.HTTPServer.Addr,
 		},
 		Status:          model.InstanceStatusUP,
 		RegTimestamp:    now,
@@ -116,13 +104,15 @@ func (d *Discovery) regSelf() context.CancelFunc {
 }
 
 func (d *Discovery) nodesproc() {
-	var lastTs int64
+	var (
+		lastTs int64
+	)
 	for {
 		arg := &model.ArgPolls{
 			AppID:           []string{model.AppID},
+			Env:             d.c.Env.DeployEnv,
 			Hostname:        d.c.Env.Host,
 			LatestTimestamp: []int64{lastTs},
-			Env:             d.c.Env.DeployEnv,
 		}
 		ch, _, _, err := d.registry.Polls(arg)
 		if err != nil && err != ecode.NotModified {
@@ -144,10 +134,6 @@ func (d *Discovery) nodesproc() {
 				for _, addr := range in.Addrs {
 					u, err := url.Parse(addr)
 					if err == nil && u.Scheme == "http" {
-						/*
-							(1) 同一Zone，append host
-							(2) Zone不同，就新增一个Zone
-						*/
 						if in.Zone == d.c.Env.Zone {
 							nodes = append(nodes, u.Host)
 						} else {
@@ -163,7 +149,7 @@ func (d *Discovery) nodesproc() {
 		c.Nodes = nodes
 		c.Zones = zones
 		ns := registry.NewNodes(c)
-		ns.UP()
+		ns.Up()
 		d.nodes.Store(ns)
 		log.Info("discovery changed nodes:%v zones:%v", nodes, zones)
 	}

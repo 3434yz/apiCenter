@@ -9,7 +9,7 @@ import (
 
 	"apiCenter/conf"
 	"apiCenter/discovery"
-	"apiCenter/discovery/http"
+	"apiCenter/http"
 
 	log "github.com/go-kratos/kratos/pkg/log"
 )

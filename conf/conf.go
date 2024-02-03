@@ -10,7 +10,7 @@ import (
 
 var (
 	configKey = "discovery.toml"
-
+	// Conf conf
 	Conf = &Config{}
 )
 
@@ -24,8 +24,8 @@ type Env struct {
 type Config struct {
 	Nodes         []string
 	Zones         map[string][]string
-	HttpServer    *http.ServerConfig
-	HttpClient    *http.ClientConfig
+	HTTPServer    *http.ServerConfig
+	HTTPClient    *http.ClientConfig
 	Env           *Env
 	Log           *log.Config
 	Scheduler     []byte
@@ -68,5 +68,5 @@ func (c *Config) Set(content string) (err error) {
 		return
 	}
 	*Conf = *tmpConf
-	return nil
+	return
 }
