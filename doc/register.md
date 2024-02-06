@@ -1,4 +1,4 @@
-# 维护实例的数据结构
+# 单实例的工作流程
 
 ## Register:
 ````
@@ -74,7 +74,7 @@ type Guard struct {
 - 每当有实例进行续约的时候 ```facInMin``` 的值就会+1，每一个注册中心的执行驱逐前会把这```facLastMin```的值置为```facInMin```，且把```facInMin```置为0.
 - 当```expThreshold < facLastMin```时说明注册中心处于```protect```状态，在这个模式下允许一定程度的续约超时。
 
-## Register的主线程
+## Register的主流程
 ```
 
 func (r *Registry) proc() {
@@ -92,63 +92,73 @@ func (r *Registry) proc() {
 }
 
 ```
+- 每分钟是一个小周期
+ - 计算服务是否处于protect时使用上个小周期计算出来的值```g.facLastMin```
+ - 先更新```g.facLastMin```再进行驱逐
+- 每15分钟是一个大周期
+ - 计算当前实例数量
+ - 重新计算gd期望值
+
 
 - 1分钟维护一次```facInMin和facLastMin```之后进行对过期实例的驱逐
 - 15分钟重置一次```expPerMin,expThreshold```，新```expPerMin```为当前所有实例的总和乘以2
 
 ## 驱逐策略
-注册中心会定期清理一些过期的实例
-```
-func (r *Registry) evict() {
-	protect := r.gd.ok()
-	var eis []*model.Instance
-	var registrySize int
-	// all projects
-	ass := r.allapp()
-	for _, as := range ass {
-		for _, a := range as.App("") {
-			registrySize += a.Len()
-			is := a.Instances()
-			for _, i := range is {
-				delta := time.Now().UnixNano() - i.RenewTimestamp
-				if (!protect && delta > _evictThreshold) || delta > _evictCeiling {
-					eis = append(eis, i)
-				}
-			}
-		}
-	}
-	eCnt := len(eis)
-	registrySizeThreshold := int(float64(registrySize) * _percentThreshold)
-	evictionLimit := registrySize - registrySizeThreshold
-	if eCnt > evictionLimit {
-		eCnt = evictionLimit
-	}
-	if eCnt == 0 {
-		return
-	}
-	for i := 0; i < eCnt; i++ {
-		// Pick a random item (Knuth shuffle algorithm)
-		next := i + rand.Intn(len(eis)-i)
-		eis[i], eis[next] = eis[next], eis[i]
-		ei := eis[i]
-		r.cancel(ei.Zone, ei.Env, ei.AppID, ei.Hostname, time.Now().UnixNano())
-	}
-}
+- 注册中心会定期清理一些过期的实例
+![apiCenter register](evict.png "evict")
 
-```
-
-- 第一步：找到所有续租超时的实例````els```
+- 第一步：找到所有续租超时的实例```els```
 - 第二步：计算最大可驱逐的实例数量 ```evictionLimit```，这里考虑到Go的GC会因为STW导致超时，所以每次都不会驱逐所有的过期实例而是只驱逐一部分。
 - 第三步：从找到的所有过期实例(```els```)中随机下线```evictionLimit```个
 
 ## 注册实例
+- 设ni为待注册的新实例，oi是可能存在的旧实例、up为服务实例启动的时间戳（纳秒），dirty是dirty操作时间戳（纳秒）
+![apiCenter register](register.png "注册实例")
 
-## 续约
+## 续租
+![apiCenter register](renew.png "实例续租")
 
 ## 更新实例
+- 更新实例时若变更了实例状态，且新状态为启动时，则实例启动时间戳(upTs)也随之更新
+![apiCenter register](set.png "更新实例")
 
 ## 拉取实例
+![apiCenter register](fetch.png "拉取实例")
 
 ## 监听实例
+![apiCenter register](poll.png "拉取实例")
+- 为了提升程序性能，在监听实例变化的地方做了以下的处理:
+```
+for i := range arg.AppID {
+		k := pollKey(arg.Env, arg.AppID[i])
+		r.cLock.Lock()
+		if _, ok := r.conns[k]; !ok {
+			r.conns[k] = &hosts{hosts: make(map[string]*conn, 1)}
+		}
+		hosts := r.conns[k]
+		r.cLock.Unlock()
+
+		hosts.hclock.Lock()
+		connection, ok := hosts.hosts[arg.Hostname]
+		if !ok {
+			if ch == nil {
+				ch = make(chan map[string]*model.InstanceInfo, 5) // NOTE: there maybe have more than one connection on the same hostname!!!
+			}
+			connection = newConn(ch, arg.LatestTimestamp[i], arg)
+			log.Info("Polls from(%s) new connection(%d)", arg.Hostname, connection.count)
+		} else {
+			connection.count++ // NOTE: there maybe have more than one connection on the same hostname!!!
+			if ch == nil {
+				ch = connection.ch
+			}
+			log.Info("Polls from(%s) reuse connection(%d)", arg.Hostname, connection.count)
+		}
+		hosts.hosts[arg.Hostname] = connection
+		hosts.hclock.Unlock()
+	}
+
+```
+- 让多个监听同一个App的请求共用一个管道以提升性能
 
 ## 下线实例
+![apiCenter register](cancel.png "下线实例")

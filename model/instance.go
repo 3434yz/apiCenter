@@ -142,6 +142,7 @@ func (a *App) NewInstance(ni *Instance, latestTime int64) (i *Instance, ok bool)
 	if ok {
 		ni.UpTimestamp = oi.UpTimestamp
 		if ni.LatestTimestamp < oi.LatestTimestamp {
+			log.Warn("register exist(%v) dirty timestamp over than caller(%v)", oi, ni)
 			ni = oi
 		}
 	}
