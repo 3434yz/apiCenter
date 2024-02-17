@@ -104,7 +104,7 @@ func (r *Registry) proc() {
 - 15分钟重置一次```expPerMin,expThreshold```，新```expPerMin```为当前所有实例的总和乘以2
 
 ## 驱逐策略
-- 注册中心会定期清理一些过期的实例
+- 注册中心会定期清理一些过期的实例 <br>
 ![apiCenter register](evict.png "evict")
 
 - 第一步：找到所有续租超时的实例```els```
@@ -112,20 +112,26 @@ func (r *Registry) proc() {
 - 第三步：从找到的所有过期实例(```els```)中随机下线```evictionLimit```个
 
 ## 注册实例
-- 设ni为待注册的新实例，oi是可能存在的旧实例、up为服务实例启动的时间戳（纳秒），dirty是dirty操作时间戳（纳秒）
+- 设ni为待注册的新实例，oi是可能存在的旧实例、up为服务实例启动的时间戳（纳秒），dirty是dirty操作时间戳（纳秒） <br>
 ![apiCenter register](register.png "注册实例")
 
 ## 续租
+<br>
+
 ![apiCenter register](renew.png "实例续租")
 
 ## 更新实例
-- 更新实例时若变更了实例状态，且新状态为启动时，则实例启动时间戳(upTs)也随之更新
+- 更新实例时若变更了实例状态，且新状态为启动时，则实例启动时间戳(upTs)也随之更新 <br>
 ![apiCenter register](set.png "更新实例")
 
 ## 拉取实例
+<br>
+
 ![apiCenter register](fetch.png "拉取实例")
 
 ## 监听实例
+<br>
+
 ![apiCenter register](poll.png "拉取实例")
 - 为了提升程序性能，在监听实例变化的地方做了以下的处理:
 ```
@@ -161,4 +167,6 @@ for i := range arg.AppID {
 - 让多个监听同一个App的请求共用一个管道以提升性能
 
 ## 下线实例
+<br>
+
 ![apiCenter register](cancel.png "下线实例")
