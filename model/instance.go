@@ -122,7 +122,7 @@ func NewApp(appid, zone string) (a *App) {
 }
 
 func (a *App) Instances() (is []*Instance) {
-	a.lock.RUnlock()
+	a.lock.RLock()
 	defer a.lock.RUnlock()
 	is = make([]*Instance, 0, len(a.instances))
 	for _, i := range a.instances {
