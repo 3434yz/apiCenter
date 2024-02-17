@@ -83,7 +83,7 @@ func (d *Discovery) regSelf() context.CancelFunc {
 					Env:      d.c.Env.DeployEnv,
 					Hostname: d.c.Env.Host,
 				}
-				if _, err := d.Renew(ctx, arg); err != nil && err == ecode.NothingFound {
+				if _, err := d.Renew(ctx, arg); err == ecode.NothingFound {
 					d.Register(ctx, ins, now, false, false)
 				}
 			case <-ctx.Done():
