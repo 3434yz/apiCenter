@@ -1,4 +1,4 @@
-# 单实例的工作流程
+# 实例维护
 
 ## Register:
 ````
@@ -9,7 +9,7 @@ type Registry struct {
    
     conns     map[string]*hosts // region.zone.env.appid-> host
 	cLock     sync.RWMutex
-	scheduler *scheduler
+	scheduler *scheduler        // 负载均衡相关数据
 	gd        *Guard
 }
 
